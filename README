@@ -1,13 +1,46 @@
 ActiveRitalin
 =============
 
-Introduction goes here.
 
 
-Example
-=======
+Rails find_by_sql is the devil. Ninety nine percent of the time find_by_sql is unnecessary and problematic, but its sooo seductive. I cant even begin to count the ways that find_by_sql can cause trouble, but heres a few:
 
-Example goes here.
+    * Plugins like acts_as_paranoid rely on developers *not* using the back door to get around the dynamic conditions to exclude deleted rows.
+    * There quite a few gotchas, ie: SELECT * FROM users JOIN another_table  wont work because ActiveRecord will use the last ID field, not the first.
+    * Logic hidden in find_by_sql is not reusable (as compared to a fancy association, etc)
+    * It offends my aesthetic sense. We all like to pretend our ORM layer isnt leaky.. dont we?
+
+I remember a time when we had to use find_by_sql when we found a feature was missing from ActiveRecord. I propose that the only remaining legitimate use of ActiveRecord may be to call a stored procedure.
+
+So, keeping with the hyperactivity theme, I suggest that we all take some ActiveRitalin: A plugin for Rails that tells ActiveRecord to chill out, and causes developers to sit and think a bit before proceeding.
+
+ActiveRitalin makes find_by_sql private and introduces find_by_sql_with_excuse that warns upon each use. The implementation is very simple:
+
+module ActiveRitalin
+  def self.append_features(klass)
+    super
+
+    klass.class_eval %(
+      def self.find_by_sql_with_excuse(excuse, sql)
+        RAILS_DEFAULT_LOGGER.warn("Find By Sql called with excuse: " + excuse )
+        find_by_sql(sql)
+      end
+
+      class << self
+        private :find_by_sql
+      end
+    )
+  end
+end
+
+To use, from your rails applications root dir:
+
+script/plugin install git://github.com/lukegalea/activeritalin.git
+
+Think you need find_by_sql? Ask yourself the following questions:
+
+    * Can I just use :include, :select, :join, :conditions or some combination of the above?
+    * Should this be an association? (perhaps with :conditions and :select on it? Maybe :readonly?)
 
 
-Copyright (c) 2008 [name of plugin creator], released under the MIT license
+Copyright (c) 2008 Luke Galea, released under the MIT license
